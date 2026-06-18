@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSSD-DR 2011 — АРМ рентгенолога (эмуляция)</title>
+<style>
+  :root{
+    --face:#d4d0c8; --face-d:#aca899; --face-l:#fff; --shadow:#808080;
+    --blue:#0a246a; --blue2:#3a6ea5; --grid:#fff; --txt:#000;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:Tahoma,'Segoe UI',sans-serif;font-size:12px;color:var(--txt);background:#5a7da0}
+  .hidden{display:none!important}
+  button{font-family:Tahoma,sans-serif;font-size:12px}
+
+  /* ---- классическая Win-кнопка ---- */
+  .btn{background:var(--face);border:1px solid #000;border-top-color:var(--face-l);
+    border-left-color:var(--face-l);border-right-color:var(--shadow);border-bottom-color:var(--shadow);
+    padding:3px 10px;cursor:pointer}
+  .btn:active{border-color:var(--shadow) var(--face-l) var(--face-l) var(--shadow)}
+
+  /* ---- окно ---- */
+  .win{position:absolute;background:var(--face);border:2px solid var(--face);
+    border-top-color:var(--face-l);border-left-color:var(--face-l);
+    border-right-color:var(--shadow);border-bottom-color:var(--shadow);
+    box-shadow:2px 2px 0 rgba(0,0,0,.35)}
+  .titlebar{background:linear-gradient(90deg,var(--blue),var(--blue2));color:#fff;
+    font-weight:bold;padding:3px 6px;display:flex;justify-content:space-between;align-items:center}
+  .titlebar .x{background:var(--face);color:#000;width:18px;height:16px;line-height:14px;
+    text-align:center;border:1px solid #000;cursor:pointer}
+  .panel{border:1px solid var(--shadow);border-right-color:var(--face-l);border-bottom-color:var(--face-l);
+    margin:6px;padding:8px}
+
+  /* ---- login ---- */
+  #login{width:300px;left:50%;top:42%;transform:translate(-50%,-50%)}
+  #login .row{display:flex;align-items:center;margin:8px 0;gap:8px}
+  #login label{width:80px;text-align:right}
+  #login input{flex:1;font-size:13px;font-weight:bold;font-family:Arial;border:1px solid var(--shadow);padding:3px}
+
+  /* ---- main shell ---- */
+  #shell{position:absolute;inset:10px}
+  #shell .titlebar{font-size:13px}
+  .toolbar{background:var(--face);border-bottom:1px solid var(--shadow);padding:3px 6px;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+  .sep{width:1px;height:22px;background:var(--shadow);margin:0 3px;border-right:1px solid var(--face-l)}
+  .tbtn{width:30px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .tbtn.active{background:var(--blue2);color:#fff;border-color:var(--shadow) var(--face-l) var(--face-l) var(--shadow)}
+  .statusbar{background:var(--face);border-top:1px solid var(--face-l);padding:3px 8px;display:flex;gap:18px;
+    font-size:11px;border-bottom:1px solid var(--shadow)}
+
+  /* ---- patients list ---- */
+  .filters{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+  .filters .f{display:flex;gap:4px;align-items:center}
+  .filters input,.filters select{border:1px solid var(--shadow);padding:2px;font-size:11px}
+  table.grid{border-collapse:collapse;width:100%;background:var(--grid)}
+  table.grid th{background:var(--face);border:1px solid var(--shadow);padding:3px 6px;text-align:left;font-weight:bold}
+  table.grid td{border:1px solid #cfcfcf;padding:2px 6px;white-space:nowrap}
+  table.grid tr{cursor:pointer}
+  table.grid tr.sel td{background:var(--blue2);color:#fff}
+  .tabs{display:flex;gap:2px;margin:6px 6px 0}
+  .tab{background:var(--face);border:1px solid var(--shadow);border-bottom:none;padding:3px 14px;cursor:pointer;
+    border-top-color:var(--face-l);border-left-color:var(--face-l)}
+  .tab.active{background:var(--face-l);font-weight:bold;position:relative;top:1px}
+
+  /* ---- viewer ---- */
+  #viewerWrap{display:flex;height:100%}
+  #vcanvasHost{flex:1;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #vside{width:230px;background:var(--face);border-left:1px solid var(--shadow);padding:8px;overflow:auto}
+  #vside h4{margin:6px 0 4px;font-size:11px;border-bottom:1px solid var(--shadow)}
+  #vside .ctl{display:flex;align-items:center;gap:6px;margin:4px 0}
+  #vside input[type=range]{flex:1}
+  #vside .lr{display:flex;gap:6px}
+  #vside textarea{width:100%;height:48px;font-size:11px}
+  .chk{display:flex;align-items:center;gap:6px;margin:6px 0}
+  .badge{display:inline-block;background:#0a0;color:#fff;padding:1px 5px;border-radius:2px;font-size:10px}
+  .badge.warn{background:#a00}
+  canvas{display:block}
+  .toast{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);background:#000a;color:#fff;
+    padding:8px 16px;border:1px solid #fff;font-size:12px;z-index:50}
+  .mini{width:46px;height:34px;background:#111;border:1px solid #555;object-fit:cover}
+</style>
+</head>
+<body>
+
+<!-- ============ ЛОГИН ============ -->
+<div class="win" id="login">
+  <div class="titlebar"><span>Вход в систему</span><span class="x" onclick="document.getElementById('login').classList.add('hidden')">×</span></div>
+  <div class="panel">
+    <div class="row"><label>Логин:</label><input id="lgUser" value="admin"></div>
+    <div class="row"><label>Пароль:</label><input id="lgPass" type="password" value="admin"></div>
+    <div class="row" style="justify-content:flex-end;gap:8px">
+      <button class="btn" onclick="doLogin()">Вход</button>
+      <button class="btn" onclick="document.getElementById('login').classList.add('hidden')">Отмена</button>
+    </div>
+    <div style="text-align:center;color:#555;font-size:10px;margin-top:4px">SKRZSOFT · DSSD-DR · MySQL: rentgen_arm</div>
+  </div>
+</div>
+
+<!-- ============ ГЛАВНОЕ ОКНО ============ -->
+<div class="win hidden" id="shell">
+  <div class="titlebar">
+    <span>DSSD-DR — Автоматизированное рабочее место рентгенолога [v.2011 KC-DDR]</span>
+    <span class="x" onclick="alert('Exit')">×</span>
+  </div>
+
+  <!-- вкладки -->
+  <div class="tabs">
+    <div class="tab active" id="tabPatients" onclick="showTab('patients')">Пациенты</div>
+    <div class="tab" id="tabImages" onclick="showTab('images')">Снимки</div>
+    <div class="tab" id="tabEvents" onclick="showTab('events')">События</div>
+  </div>
+
+  <!-- ===== ПАЦИЕНТЫ ===== -->
+  <div id="panelPatients" class="panel" style="margin-top:0">
+    <b>Список пациентов</b>
+    <div class="filters" style="margin:8px 0">
+      <div class="f">Фамилия: <input id="fSurname" oninput="renderPatients()" size="14"></div>
+      <div class="f">Пол:
+        <select id="fSex" onchange="renderPatients()"><option value="">—</option><option>М</option><option>Ж</option></select></div>
+      <div class="f">Группа риска:
+        <select id="fRisk" onchange="renderPatients()"><option value="">—</option><option>0 ГР</option><option>1 ГР</option><option>2 ГР</option></select></div>
+      <div class="f"><label class="chk"><input type="checkbox" id="fCtrl" onchange="renderPatients()"> Находится на контроле патологии</label></div>
+      <button class="btn" onclick="openAddPatient()">+ Добавить</button>
+    </div>
+    <div style="max-height:50vh;overflow:auto;border:1px solid var(--shadow)">
+      <table class="grid" id="patientsGrid">
+        <thead><tr>
+          <th>Фамилия</th><th>Имя</th><th>Отчество</th><th>Дата рождения</th><th>Пол</th>
+          <th>Гр. риска</th><th>Дата иссл.</th><th>Снимок</th><th>Описание</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;color:#333">Двойной клик по пациенту → открыть снимки. Выбран: <b id="selName">—</b></div>
+  </div>
+
+  <!-- ===== СНИМКИ (ВЬЮВЕР) ===== -->
+  <div id="panelImages" class="hidden" style="height:calc(100% - 90px)">
+    <div class="toolbar">
+      <button class="tbtn btn" title="Лупа" data-tool="lupa" onclick="setTool('lupa',this)">🔍</button>
+      <button class="tbtn btn" title="Линейка (Длина)" data-tool="ruler" onclick="setTool('ruler',this)">📏</button>
+      <button class="tbtn btn" title="Угол" data-tool="angle" onclick="setTool('angle',this)">∠</button>
+      <button class="tbtn btn" title="Окружность" data-tool="circle" onclick="setTool('circle',this)">◯</button>
+      <button class="tbtn btn" title="Область (Region)" data-tool="region" onclick="setTool('region',this)">▭</button>
+      <span class="sep"></span>
+      <button class="tbtn btn" title="Добавить Новый текст" data-tool="text" onclick="setTool('text',this)">T</button>
+      <button class="tbtn btn" title="Метка L (лево)"  onclick="placeLR('L')">L</button>
+      <button class="tbtn btn" title="Метка R (право)" onclick="placeLR('R')">R</button>
+      <span class="sep"></span>
+      <button class="tbtn btn" title="Поворот влево"  onclick="img.rot=(img.rot-90)%360;draw()">↺</button>
+      <button class="tbtn btn" title="Поворот вправо" onclick="img.rot=(img.rot+90)%360;draw()">↻</button>
+      <button class="tbtn btn" title="Отразить гор."  onclick="img.fh=!img.fh;draw()">⇋</button>
+      <button class="tbtn btn" title="Отразить верт." onclick="img.fv=!img.fv;draw()">⇅</button>
+      <button class="tbtn btn" title="Инверсия"       onclick="img.inv=!img.inv;draw()">◐</button>
+      <span class="sep"></span>
+      <button class="tbtn btn" title="Очистить все" onclick="overlays=[];draw()">🗑</button>
+      <span class="sep"></span>
+      <button class="btn" onclick="sendData()">SendData → MAKHAON</button>
+      <button class="btn" onclick="printDcm()">Print dcm</button>
+    </div>
+
+    <div id="viewerWrap">
+      <div id="vcanvasHost"><canvas id="vc" width="760" height="640"></canvas></div>
+      <div id="vside">
+        <h4>Окно / Уровень</h4>
+        <div class="ctl">Я <input type="range" id="brightness" min="-120" max="120" value="0" oninput="img.bri=+this.value;draw()"></div>
+        <div class="ctl">К <input type="range" id="contrast" min="50" max="250" value="100" oninput="img.con=+this.value;draw()"></div>
+        <h4>Гистограмма</h4>
+        <canvas id="hist" width="210" height="70" style="border:1px solid #999;background:#000"></canvas>
+        <h4>Измерение</h4>
+        <div id="measure" style="min-height:34px;color:#333;font-size:11px">— инструмент не выбран —</div>
+        <h4>Прожигание текста</h4>
+        <textarea id="burnText" placeholder="Текст для прожигания на снимке (видит врач)">ОГК, прямая. Без очаговых изменений.</textarea>
+        <label class="chk"><input type="checkbox" id="sendToDoctor" checked> отправлять врачу вместе со снимком</label>
+        <button class="btn" style="width:100%;margin-top:4px" onclick="burnIn()">Прожечь текст в DICOM-снимок</button>
+        <div id="burnStatus" style="margin-top:6px;font-size:11px"></div>
+        <h4>Исследование</h4>
+        <div id="studyInfo" style="font-size:11px;color:#333"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== СОБЫТИЯ ===== -->
+  <div id="panelEvents" class="hidden panel">
+    <b>Журнал событий (DICOM / Makhaon)</b>
+    <pre id="eventLog" style="background:#000;color:#0f0;padding:8px;height:50vh;overflow:auto;font-size:11px;border:1px solid var(--shadow)"></pre>
+  </div>
+
+  <div class="statusbar">
+    <span>Пользователь: <b id="sbUser">admin</b></span>
+    <span>БД: <b>localhost / rentgen_arm</b></span>
+    <span>DICOM Store: <b>MAKHAON@localhost:104</b></span>
+    <span>Окон: <b>1/4</b></span>
+    <span style="margin-left:auto" id="sbClock"></span>
+  </div>
+</div>
+
+<!-- ============ ДОБАВИТЬ ПАЦИЕНТА ============ -->
+<div class="win hidden" id="addPatient" style="width:340px;left:50%;top:46%;transform:translate(-50%,-50%);z-index:30">
+  <div class="titlebar"><span>Добавление пациента</span><span class="x" onclick="closeAdd()">×</span></div>
+  <div class="panel">
+    <div style="display:grid;grid-template-columns:90px 1fr;gap:6px;align-items:center">
+      <label>Фамилия*:</label><input id="apSurname">
+      <label>Имя*:</label><input id="apName">
+      <label>Отчество*:</label><input id="apFather">
+      <label>Дата рожд.*:</label><input id="apBirth" placeholder="дд.мм.гггг">
+      <label>Пол*:</label><select id="apSex"><option>М</option><option>Ж</option></select>
+      <label>Группа риска:</label><select id="apRisk"><option>0 ГР</option><option>1 ГР</option><option>2 ГР</option></select>
+    </div>
+    <div style="color:#a00;font-size:10px;margin:6px 0">Поля, помеченные * — обязательны для заполнения</div>
+    <div style="text-align:right;gap:8px;display:flex;justify-content:flex-end">
+      <button class="btn" onclick="savePatient()">Сохранить</button>
+      <button class="btn" onclick="closeAdd()">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script>
+/* ===================== ДАННЫЕ (эмуляция таблицы rentgen_arm.patients) ===================== */
+let patients = [
+  {surname:'Иванов',   name:'Пётр',    father:'Сергеевич',  birth:'12.03.1958', sex:'М', risk:'2 ГР', date:'15.03.2011', ctrl:true,  discr:'ОГК. Хр. бронхит, контроль.'},
+  {surname:'Петрова',  name:'Анна',    father:'Ивановна',   birth:'04.07.1972', sex:'Ж', risk:'1 ГР', date:'14.03.2011', ctrl:false, discr:'Флюорография, норма.'},
+  {surname:'Сидоров',  name:'Олег',    father:'Павлович',   birth:'21.11.1965', sex:'М', risk:'0 ГР', date:'14.03.2011', ctrl:false, discr:'ОГК прямая, без особенностей.'},
+  {surname:'Кузьмина', name:'Мария',   father:'Андреевна',  birth:'30.01.1949', sex:'Ж', risk:'2 ГР', date:'12.03.2011', ctrl:true,  discr:'Подозрение на очаг S6 справа.'},
+  {surname:'Романова', name:'Земфира', father:'Алексеевна', birth:'09.11.1937', sex:'Ж', risk:'1 ГР', date:'11.03.2011', ctrl:false, discr:'ОГК, возрастные изменения.'},
+];
+let selected = null;
+
+/* ===================== ЛОГИН ===================== */
+function doLogin(){
+  document.getElementById('sbUser').textContent = document.getElementById('lgUser').value || 'admin';
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('shell').classList.remove('hidden');
+  renderPatients(); tickClock(); logEvent('Server Started'); logEvent('Connected to MySQL rentgen_arm @ localhost:3306');
+}
+
+/* ===================== ВКЛАДКИ ===================== */
+function showTab(t){
+  for(const id of ['patients','images','events']){
+    document.getElementById('panel'+cap(id)).classList.toggle('hidden', id!==t);
+    document.getElementById('tab'+cap(id==='patients'?'Patients':id==='images'?'Images':'Events')).classList.remove('active');
+  }
+  document.getElementById('tab'+(t==='patients'?'Patients':t==='images'?'Images':'Events')).classList.add('active');
+  if(t==='images'){ ensureImage(); draw(); }
+}
+const cap = s=>s[0].toUpperCase()+s.slice(1);
+
+/* ===================== СПИСОК ПАЦИЕНТОВ ===================== */
+function renderPatients(){
+  const fs=(document.getElementById('fSurname').value||'').toLowerCase();
+  const fx=document.getElementById('fSex').value, fr=document.getElementById('fRisk').value, fc=document.getElementById('fCtrl').checked;
+  const tb=document.querySelector('#patientsGrid tbody'); tb.innerHTML='';
+  patients.filter(p=>
+      p.surname.toLowerCase().includes(fs) &&
+      (!fx||p.sex===fx) && (!fr||p.risk===fr) && (!fc||p.ctrl))
+    .forEach((p,i)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${p.surname}</td><td>${p.name}</td><td>${p.father}</td><td>${p.birth}</td>
+        <td>${p.sex}</td><td>${p.risk}</td><td>${p.date}</td><td>🩻</td><td>${p.discr}</td>`;
+      tr.onclick=()=>{document.querySelectorAll('#patientsGrid tr').forEach(r=>r.classList.remove('sel'));
+        tr.classList.add('sel'); selected=p; document.getElementById('selName').textContent=`${p.surname} ${p.name} ${p.father}`;};
+      tr.ondblclick=()=>{selected=p; document.getElementById('selName').textContent=`${p.surname} ${p.name} ${p.father}`; showTab('images');};
+      tb.appendChild(tr);
+    });
+}
+
+/* ===================== ДОБАВИТЬ ПАЦИЕНТА ===================== */
+function openAddPatient(){document.getElementById('addPatient').classList.remove('hidden');}
+function closeAdd(){document.getElementById('addPatient').classList.add('hidden');}
+function savePatient(){
+  const g=id=>document.getElementById(id).value.trim();
+  if(!g('apSurname')||!g('apName')||!g('apFather')||!g('apBirth')){toast('Заполните обязательные поля *');return;}
+  patients.unshift({surname:g('apSurname'),name:g('apName'),father:g('apFather'),birth:g('apBirth'),
+    sex:document.getElementById('apSex').value,risk:document.getElementById('apRisk').value,
+    date:new Date().toLocaleDateString('ru-RU'),ctrl:false,discr:'(новое исследование)'});
+  closeAdd(); renderPatients(); toast('Пациент сохранён в rentgen_arm.patients');
+  logEvent('INSERT patients: '+g('apSurname'));
+}
+
+/* ===================== ВЬЮВЕР ===================== */
+const vc=document.getElementById('vc'), ctx=vc.getContext('2d');
+let img={base:null, rot:0, fh:false, fv:false, inv:false, bri:0, con:100};
+let overlays=[]; let tool=null; let draft=null;
+
+function ensureImage(){
+  if(img.base) { document.getElementById('studyInfo').innerHTML = studyText(); return; }
+  // синтетический «рентген ОГК»
+  const w=760,h=640, off=document.createElement('canvas'); off.width=w; off.height=h;
+  const c=off.getContext('2d');
+  c.fillStyle='#000'; c.fillRect(0,0,w,h);
+  // грудная клетка — мягкие овалы + шум
+  const g=c.createRadialGradient(w/2,h/2,60,w/2,h/2,420);
+  g.addColorStop(0,'#9a9a9a'); g.addColorStop(.5,'#6a6a6a'); g.addColorStop(1,'#101010');
+  c.fillStyle=g; c.beginPath(); c.ellipse(w/2,h/2+20,260,300,0,0,7); c.fill();
+  // лёгочные поля (темнее)
+  c.globalCompositeOperation='multiply';
+  c.fillStyle='#2a2a2a';
+  c.beginPath(); c.ellipse(w/2-110,h/2,90,170,.1,0,7); c.fill();
+  c.beginPath(); c.ellipse(w/2+110,h/2,90,170,-.1,0,7); c.fill();
+  c.globalCompositeOperation='source-over';
+  // позвоночник
+  c.fillStyle='#cfcfcf'; c.fillRect(w/2-10,h/2-200,20,400);
+  // рёбра
+  c.strokeStyle='#bdbdbd'; c.lineWidth=4;
+  for(let i=0;i<9;i++){c.beginPath();c.arc(w/2,h/2-150+i*40,150+i*6,0.2,Math.PI-0.2);c.stroke();}
+  // шум
+  const im=c.getImageData(0,0,w,h),d=im.data;
+  for(let i=0;i<d.length;i+=4){const n=(Math.random()-.5)*26;d[i]+=n;d[i+1]+=n;d[i+2]+=n;}
+  c.putImageData(im,0,0);
+  img.base=off;
+  document.getElementById('studyInfo').innerHTML = studyText();
+}
+function studyText(){
+  const p=selected||patients[0];
+  return `Пациент: <b>${p.surname} ${p.name} ${p.father}</b><br>ДР: ${p.birth} · ${p.sex}<br>
+  Модальность: <b>DX</b> (Digital Radiography)<br>Детектор: аэродетектор 17"×17"<br>
+  Дата: ${p.date}<br>SOP: 1.2.840…${Math.floor(Math.random()*900+100)}`;
+}
+
+function draw(){
+  ensureImage();
+  const w=vc.width,h=vc.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+  ctx.save(); ctx.translate(w/2,h/2);
+  ctx.rotate(img.rot*Math.PI/180);
+  ctx.scale(img.fh?-1:1, img.fv?-1:1);
+  // яркость/контраст/инверсия
+  const con=img.con/100, bri=img.bri;
+  ctx.filter=`brightness(${1+bri/255}) contrast(${con}) ${img.inv?'invert(1)':''}`;
+  ctx.drawImage(img.base,-w/2,-h/2,w,h);
+  ctx.restore();
+  ctx.filter='none';
+  drawOverlays();
+  drawHist();
+}
+
+function drawOverlays(){
+  ctx.lineWidth=1.5; ctx.font='14px Tahoma';
+  for(const o of overlays.concat(draft?[draft]:[])){
+    ctx.strokeStyle=o.color||'#19e0ff'; ctx.fillStyle=o.color||'#19e0ff';
+    if(o.t==='ruler'){line(o); ctx.fillText(dist(o).toFixed(1)+' мм', mid(o).x+6, mid(o).y-6);}
+    else if(o.t==='angle'){ if(o.p3){a3(o);} else line({x1:o.x1,y1:o.y1,x2:o.x2,y2:o.y2}); }
+    else if(o.t==='circle'){const r=Math.hypot(o.x2-o.x1,o.y2-o.y1);ctx.beginPath();ctx.arc(o.x1,o.y1,r,0,7);ctx.stroke();
+      ctx.fillText('Ø '+(r*2*0.2).toFixed(1)+' мм',o.x1+r+4,o.y1);}
+    else if(o.t==='region'){ctx.strokeRect(Math.min(o.x1,o.x2),Math.min(o.y1,o.y2),Math.abs(o.x2-o.x1),Math.abs(o.y2-o.y1));}
+    else if(o.t==='text'){ctx.font='bold 16px Tahoma';ctx.fillStyle=o.color||'#ffe000';
+      ctx.fillText(o.txt,o.x1,o.y1);ctx.font='14px Tahoma';}
+    else if(o.t==='lr'){ctx.font='bold 30px Arial';ctx.fillStyle='#ffe000';ctx.fillText(o.txt,o.x1,o.y1);ctx.font='14px Tahoma';}
+    else if(o.t==='burn'){ctx.font='bold 15px Tahoma';ctx.fillStyle='#fff';
+      o.txt.split('\n').forEach((ln,i)=>ctx.fillText(ln,14,vc.height-46+i*18));ctx.font='14px Tahoma';}
+  }
+}
+const line=o=>{ctx.beginPath();ctx.moveTo(o.x1,o.y1);ctx.lineTo(o.x2,o.y2);ctx.stroke();};
+const mid=o=>({x:(o.x1+o.x2)/2,y:(o.y1+o.y2)/2});
+const dist=o=>Math.hypot(o.x2-o.x1,o.y2-o.y1)*0.2; // 0.2 мм/px (калибровка)
+function a3(o){ctx.beginPath();ctx.moveTo(o.x1,o.y1);ctx.lineTo(o.x2,o.y2);ctx.lineTo(o.p3.x,o.p3.y);ctx.stroke();
+  const a1=Math.atan2(o.y1-o.y2,o.x1-o.x2),a2=Math.atan2(o.p3.y-o.y2,o.p3.x-o.x2);
+  let deg=Math.abs((a1-a2)*180/Math.PI);if(deg>180)deg=360-deg;
+  ctx.fillText(deg.toFixed(1)+'°',o.x2+8,o.y2);}
+
+function drawHist(){
+  const hc=document.getElementById('hist'),h=hc.getContext('2d');h.clearRect(0,0,210,70);
+  const tmp=document.createElement('canvas');tmp.width=210;tmp.height=70;
+  tmp.getContext('2d').drawImage(img.base,0,0,210,70);
+  const d=tmp.getContext('2d').getImageData(0,0,210,70).data,bins=new Array(64).fill(0);
+  for(let i=0;i<d.length;i+=4){bins[Math.min(63,d[i]>>2)]++;}
+  const mx=Math.max(...bins);h.fillStyle='#0f0';
+  bins.forEach((v,i)=>{const bh=v/mx*68;h.fillRect(i*3.2,70-bh,3,bh);});
+}
+
+/* ---- инструменты ---- */
+function setTool(t,el){tool=t;document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  document.getElementById('measure').textContent='Инструмент: '+({ruler:'Линейка (Длина)',angle:'Угол',circle:'Окружность',region:'Область',lupa:'Лупа',text:'Новый текст'}[t]||t);}
+function evPos(e){const r=vc.getBoundingClientRect();return{x:(e.clientX-r.left)*vc.width/r.width,y:(e.clientY-r.top)*vc.height/r.height};}
+
+vc.addEventListener('mousedown',e=>{
+  const p=evPos(e);
+  if(tool==='text'){const txt=prompt('Текст для нанесения на снимок:','L');if(txt){overlays.push({t:'text',x1:p.x,y1:p.y,txt});draw();}return;}
+  if(tool==='angle'){
+    if(!draft){draft={t:'angle',x1:p.x,y1:p.y,x2:p.x,y2:p.y};}
+    else if(!draft.p3){draft.x2=p.x;draft.y2=p.y;draft.p3={x:p.x,y:p.y};}
+    else{draft.p3={x:p.x,y:p.y};overlays.push(draft);draft=null;}
+    draw();return;
+  }
+  if(['ruler','circle','region'].includes(tool)){draft={t:tool,x1:p.x,y1:p.y,x2:p.x,y2:p.y};}
+});
+vc.addEventListener('mousemove',e=>{
+  const p=evPos(e);
+  if(draft){if(draft.t==='angle'&&draft.p3){draft.p3=p;}else{draft.x2=p.x;draft.y2=p.y;}draw();
+    if(draft.t==='ruler')document.getElementById('measure').textContent='Длина: '+dist(draft).toFixed(1)+' мм';}
+  if(tool==='lupa'){draw();const z=2.2,r=70;ctx.save();ctx.beginPath();ctx.arc(p.x,p.y,r,0,7);ctx.clip();
+    ctx.drawImage(vc,p.x-r/z,p.y-r/z,2*r/z,2*r/z,p.x-r,p.y-r,2*r,2*r);ctx.restore();
+    ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(p.x,p.y,r,0,7);ctx.stroke();}
+});
+vc.addEventListener('mouseup',e=>{if(draft&&draft.t!=='angle'){overlays.push(draft);draft=null;draw();}});
+
+/* ---- L/R метки ---- */
+function placeLR(side){
+  const x = side==='L' ? vc.width-60 : 24;
+  overlays.push({t:'lr',x1:x,y1:50,txt:side});
+  draw(); toast('Метка «'+side+'» нанесена');
+}
+
+/* ---- ПРОЖИГАНИЕ ТЕКСТА (мини-кейс Василия) ---- */
+function burnIn(){
+  const txt=document.getElementById('burnText').value.trim();
+  const send=document.getElementById('sendToDoctor').checked;
+  overlays=overlays.filter(o=>o.t!=='burn');
+  if(txt) overlays.push({t:'burn',txt});
+  draw();
+  const st=document.getElementById('burnStatus');
+  if(send){
+    st.innerHTML='<span class="badge">OK</span> текст вписан в пиксельные данные (Burned-In Annotation = YES) и попадёт врачу.';
+    logEvent('Burn-in annotation -> pixel data; will be sent to PACS');
+  } else {
+    st.innerHTML='<span class="badge warn">ВНИМАНИЕ</span> текст только на экране — врач его НЕ получит (старый баг).';
+  }
+}
+
+/* ---- SendData / Print ---- */
+function sendData(){
+  const send=document.getElementById('sendToDoctor').checked;
+  logEvent('C-STORE-RQ -> MAKHAON@localhost:104 (DX Image Storage)');
+  logEvent('C-STORE-RSP status: 0000 (Success)');
+  toast(send?'Снимок + описание отправлены врачу (MAKHAON)':'Снимок отправлен. ВНИМАНИЕ: текст не приложен!');
+}
+function printDcm(){logEvent('DICOM Print -> KC_PLNK5_SCP@192.168.1.162:6000  FilmSize=14INX17IN');toast('Отправлено на DICOM-принтер');}
+
+/* ---- журнал/служебное ---- */
+function logEvent(m){const el=document.getElementById('eventLog');
+  el.textContent+=`${new Date().toLocaleString('ru-RU')}\t[INFO]\t"${m}"\n`;el.scrollTop=el.scrollHeight;}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.remove('hidden');
+  clearTimeout(t._);t._=setTimeout(()=>t.classList.add('hidden'),2200);}
+function tickClock(){document.getElementById('sbClock').textContent=new Date().toLocaleString('ru-RU');setTimeout(tickClock,1000);}
+</script>
+</body>
+</html>
