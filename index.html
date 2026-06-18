@@ -45,6 +45,8 @@
   .sep{width:1px;height:22px;background:var(--shadow);margin:0 3px;border-right:1px solid var(--face-l)}
   .tbtn{width:30px;height:26px;display:flex;align-items:center;justify-content:center;font-size:14px}
   .tbtn.active{background:var(--blue2);color:#fff;border-color:var(--shadow) var(--face-l) var(--face-l) var(--shadow)}
+  .proc{flex:1;padding:3px 4px}
+  .proc.active{background:var(--blue2);color:#fff;font-weight:bold}
   .statusbar{background:var(--face);border-top:1px solid var(--face-l);padding:3px 8px;display:flex;gap:18px;
     font-size:11px;border-bottom:1px solid var(--shadow)}
 
@@ -162,6 +164,14 @@
     <div id="viewerWrap">
       <div id="vcanvasHost"><canvas id="vc" width="760" height="640"></canvas></div>
       <div id="vside">
+        <h4>Обработка изображения</h4>
+        <div class="ctl" style="gap:4px;flex-wrap:wrap">
+          <button class="btn proc" id="pBase"  onclick="setProc('base',this)">Базовый</button>
+          <button class="btn proc" id="pClahe" onclick="setProc('clahe',this)">CLAHE</button>
+          <button class="btn proc active" id="pEnh" onclick="setProc('enh',this)">Усиление</button>
+        </div>
+        <div class="ctl" id="enhStrengthRow">Сила <input type="range" id="enhStrength" min="0" max="250" value="120" oninput="img.enh=+this.value/100;buildProcessed();draw()"></div>
+        <div style="font-size:10px;color:#666;margin:-2px 0 4px">CLAHE — что пробовал; Усиление — многомасштабное (класс ContextVision), на реальном кадре</div>
         <h4>Окно / Уровень</h4>
         <div class="ctl">Я <input type="range" id="brightness" min="-120" max="120" value="0" oninput="img.bri=+this.value;draw()"></div>
         <div class="ctl">К <input type="range" id="contrast" min="50" max="250" value="100" oninput="img.con=+this.value;draw()"></div>
@@ -172,7 +182,8 @@
         <h4>Прожигание текста</h4>
         <textarea id="burnText" placeholder="Текст для прожигания на снимке (видит врач)">ОГК, прямая. Без очаговых изменений.</textarea>
         <label class="chk"><input type="checkbox" id="sendToDoctor" checked> отправлять врачу вместе со снимком</label>
-        <button class="btn" style="width:100%;margin-top:4px" onclick="burnIn()">Прожечь текст в DICOM-снимок</button>
+        <button class="btn" style="width:100%;margin-top:4px" onclick="burnIn()">Прожечь текст в снимок</button>
+        <button class="btn" style="width:100%;margin-top:4px" onclick="exportPng()">Экспорт снимка (.png) с прожиганием</button>
         <div id="burnStatus" style="margin-top:6px;font-size:11px"></div>
         <h4>Исследование</h4>
         <div id="studyInfo" style="font-size:11px;color:#333"></div>
@@ -243,7 +254,7 @@ function showTab(t){
     document.getElementById('tab'+cap(id==='patients'?'Patients':id==='images'?'Images':'Events')).classList.remove('active');
   }
   document.getElementById('tab'+(t==='patients'?'Patients':t==='images'?'Images':'Events')).classList.add('active');
-  if(t==='images'){ ensureImage(); draw(); }
+  if(t==='images'){ loaded?draw():loadImages(); }
 }
 const cap = s=>s[0].toUpperCase()+s.slice(1);
 
@@ -281,92 +292,115 @@ function savePatient(){
 
 /* ===================== ВЬЮВЕР ===================== */
 const vc=document.getElementById('vc'), ctx=vc.getContext('2d');
-let img={base:null, rot:0, fh:false, fv:false, inv:false, bri:0, con:100};
+let img={proc:'enh', enh:1.2, rot:0, fh:false, fv:false, inv:false, bri:0, con:100, iw:0, ih:0,
+  baseData:null, claheData:null, detailData:null};
 let overlays=[]; let tool=null; let draft=null;
+let loaded=false, loading=false;
+const processed=document.createElement('canvas'); const pctx=processed.getContext('2d');
+let FS=1, MMPX=0.286; // мм/пиксель (после downscale /2 реального детектора)
 
-function ensureImage(){
-  if(img.base) { document.getElementById('studyInfo').innerHTML = studyText(); return; }
-  // синтетический «рентген ОГК»
-  const w=760,h=640, off=document.createElement('canvas'); off.width=w; off.height=h;
-  const c=off.getContext('2d');
-  c.fillStyle='#000'; c.fillRect(0,0,w,h);
-  // грудная клетка — мягкие овалы + шум
-  const g=c.createRadialGradient(w/2,h/2,60,w/2,h/2,420);
-  g.addColorStop(0,'#9a9a9a'); g.addColorStop(.5,'#6a6a6a'); g.addColorStop(1,'#101010');
-  c.fillStyle=g; c.beginPath(); c.ellipse(w/2,h/2+20,260,300,0,0,7); c.fill();
-  // лёгочные поля (темнее)
-  c.globalCompositeOperation='multiply';
-  c.fillStyle='#2a2a2a';
-  c.beginPath(); c.ellipse(w/2-110,h/2,90,170,.1,0,7); c.fill();
-  c.beginPath(); c.ellipse(w/2+110,h/2,90,170,-.1,0,7); c.fill();
-  c.globalCompositeOperation='source-over';
-  // позвоночник
-  c.fillStyle='#cfcfcf'; c.fillRect(w/2-10,h/2-200,20,400);
-  // рёбра
-  c.strokeStyle='#bdbdbd'; c.lineWidth=4;
-  for(let i=0;i<9;i++){c.beginPath();c.arc(w/2,h/2-150+i*40,150+i*6,0.2,Math.PI-0.2);c.stroke();}
-  // шум
-  const im=c.getImageData(0,0,w,h),d=im.data;
-  for(let i=0;i<d.length;i+=4){const n=(Math.random()-.5)*26;d[i]+=n;d[i+1]+=n;d[i+2]+=n;}
-  c.putImageData(im,0,0);
-  img.base=off;
-  document.getElementById('studyInfo').innerHTML = studyText();
+function grayFrom(im){const d=im.data,n=d.length/4,out=new Uint8ClampedArray(n);
+  for(let i=0,j=0;i<d.length;i+=4,j++)out[j]=d[i];return out;}
+function loadOne(src){return new Promise(res=>{const im=new Image();im.onload=()=>res(im);im.src=src;});}
+
+async function loadImages(){
+  if(loaded||loading)return; loading=true;
+  const [b,c,d]=await Promise.all([loadOne('img/chest_base.png'),loadOne('img/chest_clahe.png'),loadOne('img/chest_detail.png')]);
+  img.iw=b.naturalWidth; img.ih=b.naturalHeight; FS=img.ih/640;
+  const t=document.createElement('canvas'); t.width=img.iw; t.height=img.ih; const tc=t.getContext('2d');
+  tc.drawImage(b,0,0); img.baseData=grayFrom(tc.getImageData(0,0,img.iw,img.ih));
+  tc.drawImage(c,0,0); img.claheData=grayFrom(tc.getImageData(0,0,img.iw,img.ih));
+  tc.drawImage(d,0,0); img.detailData=grayFrom(tc.getImageData(0,0,img.iw,img.ih));
+  processed.width=img.iw; processed.height=img.ih;
+  vc.width=img.iw; vc.height=img.ih;
+  loaded=true; loading=false;
+  buildProcessed(); document.getElementById('studyInfo').innerHTML=studyText(); draw();
 }
+
+function buildProcessed(){
+  if(!loaded)return;
+  const n=img.iw*img.ih, out=pctx.createImageData(img.iw,img.ih), o=out.data;
+  const B=img.baseData, C=img.claheData, D=img.detailData, k=img.enh, mode=img.proc;
+  for(let i=0,j=0;i<n;i++,j+=4){
+    let v;
+    if(mode==='base')v=B[i];
+    else if(mode==='clahe')v=C[i];
+    else {v=B[i]+k*(D[i]-128); v=v<0?0:v>255?255:v;}
+    o[j]=o[j+1]=o[j+2]=v; o[j+3]=255;
+  }
+  pctx.putImageData(out,0,0);
+}
+
+function setProc(mode,el){
+  img.proc=mode;
+  document.querySelectorAll('.proc').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  document.getElementById('enhStrengthRow').style.display = mode==='enh'?'flex':'none';
+  buildProcessed(); draw();
+  logEvent('Processing mode: '+({base:'Базовый',clahe:'CLAHE',enh:'Усиление (многомасштаб)'}[mode]));
+}
+
 function studyText(){
   const p=selected||patients[0];
   return `Пациент: <b>${p.surname} ${p.name} ${p.father}</b><br>ДР: ${p.birth} · ${p.sex}<br>
-  Модальность: <b>DX</b> (Digital Radiography)<br>Детектор: аэродетектор 17"×17"<br>
+  Модальность: <b>DX</b> (Digital Radiography)<br>Детектор: аэродетектор, кадр ${img.iw*2}×${img.ih*2}, 14 бит<br>
   Дата: ${p.date}<br>SOP: 1.2.840…${Math.floor(Math.random()*900+100)}`;
 }
 
 function draw(){
-  ensureImage();
+  if(!loaded){ if(!loading)loadImages(); return; }
   const w=vc.width,h=vc.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
   ctx.save(); ctx.translate(w/2,h/2);
   ctx.rotate(img.rot*Math.PI/180);
   ctx.scale(img.fh?-1:1, img.fv?-1:1);
-  // яркость/контраст/инверсия
-  const con=img.con/100, bri=img.bri;
-  ctx.filter=`brightness(${1+bri/255}) contrast(${con}) ${img.inv?'invert(1)':''}`;
-  ctx.drawImage(img.base,-w/2,-h/2,w,h);
-  ctx.restore();
-  ctx.filter='none';
+  ctx.filter=`brightness(${1+img.bri/255}) contrast(${img.con/100}) ${img.inv?'invert(1)':''}`;
+  ctx.drawImage(processed,-w/2,-h/2,w,h);
+  ctx.restore(); ctx.filter='none';
   drawOverlays();
   drawHist();
 }
 
 function drawOverlays(){
-  ctx.lineWidth=1.5; ctx.font='14px Tahoma';
+  ctx.lineWidth=1.5*FS; ctx.font=(14*FS)+'px Tahoma';
   for(const o of overlays.concat(draft?[draft]:[])){
     ctx.strokeStyle=o.color||'#19e0ff'; ctx.fillStyle=o.color||'#19e0ff';
-    if(o.t==='ruler'){line(o); ctx.fillText(dist(o).toFixed(1)+' мм', mid(o).x+6, mid(o).y-6);}
+    if(o.t==='ruler'){line(o); ctx.fillText(dist(o).toFixed(1)+' мм', mid(o).x+6*FS, mid(o).y-6*FS);}
     else if(o.t==='angle'){ if(o.p3){a3(o);} else line({x1:o.x1,y1:o.y1,x2:o.x2,y2:o.y2}); }
     else if(o.t==='circle'){const r=Math.hypot(o.x2-o.x1,o.y2-o.y1);ctx.beginPath();ctx.arc(o.x1,o.y1,r,0,7);ctx.stroke();
-      ctx.fillText('Ø '+(r*2*0.2).toFixed(1)+' мм',o.x1+r+4,o.y1);}
+      ctx.fillText('Ø '+(r*2*MMPX).toFixed(1)+' мм',o.x1+r+4*FS,o.y1);}
     else if(o.t==='region'){ctx.strokeRect(Math.min(o.x1,o.x2),Math.min(o.y1,o.y2),Math.abs(o.x2-o.x1),Math.abs(o.y2-o.y1));}
-    else if(o.t==='text'){ctx.font='bold 16px Tahoma';ctx.fillStyle=o.color||'#ffe000';
-      ctx.fillText(o.txt,o.x1,o.y1);ctx.font='14px Tahoma';}
-    else if(o.t==='lr'){ctx.font='bold 30px Arial';ctx.fillStyle='#ffe000';ctx.fillText(o.txt,o.x1,o.y1);ctx.font='14px Tahoma';}
-    else if(o.t==='burn'){ctx.font='bold 15px Tahoma';ctx.fillStyle='#fff';
-      o.txt.split('\n').forEach((ln,i)=>ctx.fillText(ln,14,vc.height-46+i*18));ctx.font='14px Tahoma';}
+    else if(o.t==='text'){ctx.font='bold '+(16*FS)+'px Tahoma';outlined(o.txt,o.x1,o.y1,o.color||'#ffe000');ctx.font=(14*FS)+'px Tahoma';}
+    else if(o.t==='lr'){ctx.font='bold '+(40*FS)+'px Arial';outlined(o.txt,o.x1,o.y1,'#ffe000');ctx.font=(14*FS)+'px Tahoma';}
+    else if(o.t==='burn'){ctx.font='bold '+(18*FS)+'px Tahoma';
+      o.txt.split('\n').forEach((ln,i)=>outlined(ln,14*FS,vc.height-(48-i*22)*FS,'#fff'));ctx.font=(14*FS)+'px Tahoma';}
   }
 }
+function outlined(txt,x,y,fill){ctx.lineWidth=Math.max(2,4*FS);ctx.strokeStyle='rgba(0,0,0,.85)';
+  ctx.strokeText(txt,x,y);ctx.fillStyle=fill;ctx.fillText(txt,x,y);ctx.lineWidth=1.5*FS;}
 const line=o=>{ctx.beginPath();ctx.moveTo(o.x1,o.y1);ctx.lineTo(o.x2,o.y2);ctx.stroke();};
 const mid=o=>({x:(o.x1+o.x2)/2,y:(o.y1+o.y2)/2});
-const dist=o=>Math.hypot(o.x2-o.x1,o.y2-o.y1)*0.2; // 0.2 мм/px (калибровка)
+const dist=o=>Math.hypot(o.x2-o.x1,o.y2-o.y1)*MMPX;
 function a3(o){ctx.beginPath();ctx.moveTo(o.x1,o.y1);ctx.lineTo(o.x2,o.y2);ctx.lineTo(o.p3.x,o.p3.y);ctx.stroke();
   const a1=Math.atan2(o.y1-o.y2,o.x1-o.x2),a2=Math.atan2(o.p3.y-o.y2,o.p3.x-o.x2);
   let deg=Math.abs((a1-a2)*180/Math.PI);if(deg>180)deg=360-deg;
-  ctx.fillText(deg.toFixed(1)+'°',o.x2+8,o.y2);}
+  ctx.fillText(deg.toFixed(1)+'°',o.x2+8*FS,o.y2);}
 
 function drawHist(){
   const hc=document.getElementById('hist'),h=hc.getContext('2d');h.clearRect(0,0,210,70);
-  const tmp=document.createElement('canvas');tmp.width=210;tmp.height=70;
-  tmp.getContext('2d').drawImage(img.base,0,0,210,70);
-  const d=tmp.getContext('2d').getImageData(0,0,210,70).data,bins=new Array(64).fill(0);
-  for(let i=0;i<d.length;i+=4){bins[Math.min(63,d[i]>>2)]++;}
-  const mx=Math.max(...bins);h.fillStyle='#0f0';
+  if(!loaded)return;
+  const src=img.proc==='clahe'?img.claheData:img.baseData, bins=new Array(64).fill(0), step=997;
+  for(let i=0;i<src.length;i+=step)bins[src[i]>>2]++;
+  const mx=Math.max(...bins)||1;h.fillStyle='#0f0';
   bins.forEach((v,i)=>{const bh=v/mx*68;h.fillRect(i*3.2,70-bh,3,bh);});
+}
+
+function exportPng(){
+  draw();
+  const a=document.createElement('a');
+  a.download='study_'+( (selected||patients[0]).surname )+'_burned.png';
+  a.href=vc.toDataURL('image/png'); a.click();
+  logEvent('Export PNG with burned-in annotations');
+  toast('Снимок выгружен с прожжёнными метками/текстом');
 }
 
 /* ---- инструменты ---- */
@@ -398,8 +432,9 @@ vc.addEventListener('mouseup',e=>{if(draft&&draft.t!=='angle'){overlays.push(dra
 
 /* ---- L/R метки ---- */
 function placeLR(side){
-  const x = side==='L' ? vc.width-60 : 24;
-  overlays.push({t:'lr',x1:x,y1:50,txt:side});
+  const m=24*FS;
+  const x = side==='L' ? vc.width-60*FS : m;
+  overlays.push({t:'lr',x1:x,y1:55*FS,txt:side});
   draw(); toast('Метка «'+side+'» нанесена');
 }
 
