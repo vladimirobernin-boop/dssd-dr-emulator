@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>DaliView — АРМ врача (вьювер)</title>
+<style>
+  :root{--bg:#0b0f14;--panel:#0e131a;--chrome:#11161d;--bd:#232a33;--tx:#c9d1d9;--mut:#8b949e;--dim:#6e7681;--ac:#2dd4bf;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font-family:-apple-system,'Segoe UI',sans-serif;font-size:13px}
+  a{color:inherit;text-decoration:none}
+  .app{display:flex;flex-direction:column;height:100vh}
+  .titlebar{display:flex;align-items:center;justify-content:space-between;background:var(--chrome);border-bottom:1px solid var(--bd);padding:8px 14px}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:500;color:#e6edf3}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ac)}
+  .titlebar .r{display:flex;gap:16px;color:var(--mut);font-size:12px;align-items:center}
+  .toolbar{display:flex;align-items:center;gap:4px;background:var(--panel);border-bottom:1px solid var(--bd);padding:6px 12px;flex-wrap:wrap}
+  .tool{font-size:18px;padding:6px;color:var(--tx);border-radius:6px;cursor:pointer;line-height:1;background:none;border:none}
+  .tool:hover{background:#1b2230}
+  .tool.on{background:var(--ac);color:#06201c}
+  .sep{width:1px;height:20px;background:var(--bd);margin:0 4px}
+  .chip{font-size:11px;color:var(--mut);border:1px solid var(--bd);padding:4px 9px;border-radius:6px;cursor:pointer;background:none}
+  .chip.on{color:#06201c;background:var(--ac);border-color:var(--ac)}
+  .body{display:grid;grid-template-columns:150px 1fr 168px;flex:1;min-height:0}
+  .side{background:var(--panel);overflow:auto;padding:10px}
+  .side.l{border-right:1px solid var(--bd);padding:0}
+  .side.r{border-left:1px solid var(--bd)}
+  .h{font-size:11px;color:var(--dim);margin:10px 0 6px}
+  .wl-item{padding:9px 12px;border-left:2px solid transparent;cursor:pointer}
+  .wl-item:hover{background:#131a24}
+  .wl-item.sel{border-left-color:var(--ac);background:#13202066}
+  .wl-name{font-size:12px;color:#e6edf3}.wl-sub{font-size:11px;color:var(--mut)}
+  .view{position:relative;background:#05070a;overflow:hidden}
+  #cv{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+  .ov{position:absolute;font-size:11px;line-height:1.5;color:#aeb4ba;pointer-events:none;text-shadow:0 0 3px #000}
+  .lmark{position:absolute;top:34px;right:14px;font-size:30px;font-weight:500;color:#ffe14d;pointer-events:none;text-shadow:0 0 4px #000}
+  .thumbs{display:flex;gap:6px;flex-wrap:wrap}
+  .thumb{width:46px;height:40px;border-radius:5px;border:1px solid var(--bd);background:radial-gradient(ellipse at 50% 45%,#5a5f66,#0f1115);cursor:pointer}
+  .thumb.on{border-color:var(--ac)}
+  .row{display:flex;align-items:center;gap:7px;margin:7px 0}
+  .row span.lab{font-size:11px;color:var(--mut);width:14px}
+  input[type=range]{flex:1;accent-color:var(--ac)}
+  .pbtn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:var(--ac);color:#06201c;border:none;border-radius:7px;padding:8px;font-size:12px;font-weight:500;cursor:pointer}
+  .pbtn.alt{background:none;color:var(--tx);border:1px solid var(--bd)}
+  .status{display:flex;align-items:center;justify-content:space-between;background:var(--chrome);border-top:1px solid var(--bd);padding:5px 14px;font-size:11px;color:var(--dim)}
+  .ac{color:var(--ac)}
+  canvas#cv{display:block}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="titlebar">
+    <div class="brand"><span class="dot"></span>DaliView <span style="color:var(--mut);font-weight:400">· АРМ врача</span></div>
+    <div class="r">
+      <a href="daliview-worklist.html" class="ac"><i class="ti ti-list"></i> Рабочий список</a>
+      <span><i class="ti ti-user"></i> Иванова О.П.</span>
+      <span class="ac"><i class="ti ti-plug-connected"></i> DaliStore</span>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="tool" title="Курсор">⌖</button>
+    <button class="tool on" title="Линейка">📏</button>
+    <button class="tool" title="Угол">∠</button>
+    <button class="tool" title="Окружность">◯</button>
+    <button class="tool" title="Текст">T</button>
+    <button class="tool" title="Лупа">🔍</button>
+    <button class="tool" title="Инверсия" onclick="img.inv=!img.inv;draw()">◐</button>
+    <span class="sep"></span>
+    <button class="chip" onclick="preset(this,2.0,140)">Лёгкие</button>
+    <button class="chip" onclick="preset(this,3.2,90)">Кости</button>
+    <button class="chip" onclick="preset(this,1.4,110)">Средостение</button>
+  </div>
+
+  <div class="body">
+    <div class="side l">
+      <div class="h" style="padding:8px 12px 0">Рабочий список</div>
+      <div class="wl-item sel"><div class="wl-name">Иванов П.С.</div><div class="wl-sub">ОГК · сегодня</div></div>
+      <div class="wl-item"><div class="wl-name">Петрова А.И.</div><div class="wl-sub">Флюоро · 14:02</div></div>
+      <div class="wl-item"><div class="wl-name">Сидоров О.П.</div><div class="wl-sub">ОГК · 13:48</div></div>
+      <div class="wl-item"><div class="wl-name">Кузьмина М.А.</div><div class="wl-sub">ОГК · 12:30</div></div>
+    </div>
+
+    <div class="view" id="view">
+      <canvas id="cv"></canvas>
+      <svg id="ovsvg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></svg>
+      <div class="ov" style="top:8px;left:12px">Иванов П.С. · М<br>12.03.1958 · ID 00482</div>
+      <div class="ov" style="top:8px;right:12px;text-align:right" id="ovTR">ОГК, прямая<br>DX · серия 1/1</div>
+      <div class="lmark">L</div>
+      <div class="ov" style="bottom:8px;left:12px" id="ovWL">WW 16383  WL 8191</div>
+      <div class="ov" style="bottom:8px;right:12px" id="ovFps">100%</div>
+    </div>
+
+    <div class="side r">
+      <div class="h">Серии</div>
+      <div class="thumbs"><div class="thumb on"></div><div class="thumb"></div></div>
+      <div class="h">Скопия (серия)</div>
+      <button class="pbtn" id="playBtn" onclick="toggleCine()"><i class="ti ti-player-play"></i> Воспроизвести</button>
+      <div style="font-size:11px;color:var(--mut);margin-top:6px">Кадр <b id="frame" class="ac">0</b> · <b id="fps" class="ac">—</b> к/с</div>
+      <div class="h">Окно / уровень</div>
+      <div class="row"><span class="lab">Я</span><input type="range" id="bri" min="-120" max="120" value="0" oninput="img.bri=+this.value;draw()"></div>
+      <div class="row"><span class="lab">К</span><input type="range" id="con" min="50" max="250" value="110" oninput="img.con=+this.value;draw()"></div>
+      <div class="h">Обработка</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="chip" id="m_base" onclick="setProc('base',this)">Базовый</button>
+        <button class="chip" id="m_clahe" onclick="setProc('clahe',this)">CLAHE</button>
+        <button class="chip on" id="m_enh" onclick="setProc('enh',this)">Усиление</button>
+      </div>
+      <div class="h">Измерение</div>
+      <div style="font-size:12px" class="ac">Длина: 103.1 мм</div>
+    </div>
+  </div>
+
+  <div class="status">
+    <span>PostgreSQL · подключено</span><span>DICOM C-STORE: 104 · DX</span><span>Linux / Astra</span><span id="clock"></span>
+  </div>
+</div>
+
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+let img={proc:'enh',enh:1.2,bri:0,con:110,inv:false,iw:0,ih:0,base:null,clahe:null,detail:null};
+let loaded=false; const proc=document.createElement('canvas'),pc=proc.getContext('2d');
+const gray=im=>{const d=im.data,o=new Uint8ClampedArray(d.length/4);for(let i=0,j=0;i<d.length;i+=4,j++)o[j]=d[i];return o;};
+const load=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=s;});
+async function init(){
+  const[b,c,d]=await Promise.all([load('img/chest_base.png'),load('img/chest_clahe.png'),load('img/chest_detail.png')]);
+  img.iw=b.naturalWidth;img.ih=b.naturalHeight;const t=document.createElement('canvas');t.width=img.iw;t.height=img.ih;const tc=t.getContext('2d');
+  tc.drawImage(b,0,0);img.base=gray(tc.getImageData(0,0,img.iw,img.ih));
+  tc.drawImage(c,0,0);img.clahe=gray(tc.getImageData(0,0,img.iw,img.ih));
+  tc.drawImage(d,0,0);img.detail=gray(tc.getImageData(0,0,img.iw,img.ih));
+  proc.width=img.iw;proc.height=img.ih;cv.width=img.iw;cv.height=img.ih;loaded=true;build();draw();drawRuler();
+}
+function build(){if(!loaded)return;const n=img.iw*img.ih,o=pc.createImageData(img.iw,img.ih),a=o.data,B=img.base,C=img.clahe,D=img.detail,k=img.enh,m=img.proc;
+  for(let i=0,j=0;i<n;i++,j+=4){let v;if(m==='base')v=B[i];else if(m==='clahe')v=C[i];else{v=B[i]+k*(D[i]-128);v=v<0?0:v>255?255:v;}a[j]=a[j+1]=a[j+2]=v;a[j+3]=255;}pc.putImageData(o,0,0);}
+function setProc(m,el){img.proc=m;document.querySelectorAll('#m_base,#m_clahe,#m_enh').forEach(b=>b.classList.remove('on'));el.classList.add('on');build();draw();}
+function preset(el,k,con){document.querySelectorAll('.chip').forEach(c=>{if(c.textContent==='Лёгкие'||c.textContent==='Кости'||c.textContent==='Средостение')c.classList.remove('on');});el.classList.add('on');img.enh=k;img.con=con;document.getElementById('con').value=con;build();draw();}
+function draw(){if(!loaded)return;const w=cv.width,h=cv.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#05070a';ctx.fillRect(0,0,w,h);
+  ctx.filter=`brightness(${1+img.bri/255}) contrast(${img.con/100}) ${img.inv?'invert(1)':''}`;ctx.drawImage(proc,0,0,w,h);ctx.filter='none';
+  document.getElementById('ovWL').innerHTML='WW '+Math.round(16383*img.con/110)+'  WL '+Math.round(8191+img.bri*40);}
+function drawRuler(){const s=document.getElementById('ovsvg');s.setAttribute('viewBox','0 0 '+cv.width+' '+cv.height);
+  s.innerHTML='<line x1="'+cv.width*0.36+'" y1="'+cv.height*0.4+'" x2="'+cv.width*0.56+'" y2="'+cv.height*0.62+'" stroke="#2dd4bf" stroke-width="2"/><text x="'+cv.width*0.57+'" y="'+cv.height*0.61+'" fill="#2dd4bf" font-size="26" font-family="sans-serif">103.1 мм</text>';}
+
+let cine={on:false,t:0,frames:0,fpsT:0};
+function toggleCine(){if(!loaded)return;cine.on=!cine.on;document.getElementById('playBtn').innerHTML=cine.on?'<i class="ti ti-player-pause"></i> Стоп':'<i class="ti ti-player-play"></i> Воспроизвести';
+  document.getElementById('ovTR').innerHTML='ОГК · скопия<br>DX · серия 1/1 · кино';if(cine.on){cine.fpsT=performance.now();cine.frames=0;requestAnimationFrame(cineLoop);}else{draw();}}
+function cineLoop(ts){if(!cine.on)return;const w=cv.width,h=cv.height,ph=cine.t*0.22,dy=Math.sin(ph)*h*0.012;
+  ctx.clearRect(0,0,w,h);ctx.fillStyle='#05070a';ctx.fillRect(0,0,w,h);
+  ctx.filter=`brightness(${1+img.bri/255}) contrast(${img.con/100}) ${img.inv?'invert(1)':''}`;ctx.drawImage(proc,0,dy,w,h);ctx.filter='none';
+  const py=h*0.2+((cine.t*6)%(h*0.55)),px=w*0.47,g=ctx.createRadialGradient(px,py,2,px,py,40);g.addColorStop(0,'rgba(255,255,255,.8)');g.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(px,py,40,0,7);ctx.fill();
+  cine.t++;cine.frames++;document.getElementById('frame').textContent=cine.t;
+  if(ts-cine.fpsT>=400){document.getElementById('fps').textContent=Math.round(cine.frames*1000/(ts-cine.fpsT));cine.frames=0;cine.fpsT=ts;}
+  requestAnimationFrame(cineLoop);}
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleString('ru-RU');setTimeout(tick,1000);}
+init();tick();
+</script>
+</body>
+</html>
