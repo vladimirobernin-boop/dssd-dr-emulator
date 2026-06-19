@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>DaliView — Протокол исследования</title>
+<style>
+  :root{--bg:#0b0f14;--panel:#0e131a;--chrome:#11161d;--bd:#232a33;--tx:#c9d1d9;--mut:#8b949e;--dim:#6e7681;--ac:#2dd4bf;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font-family:-apple-system,'Segoe UI',sans-serif;font-size:13px}
+  a{color:inherit;text-decoration:none}
+  .app{display:flex;flex-direction:column;height:100vh}
+  .titlebar{display:flex;align-items:center;justify-content:space-between;background:var(--chrome);border-bottom:1px solid var(--bd);padding:8px 14px}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:500;color:#e6edf3}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ac)}
+  .titlebar .r{display:flex;gap:16px;color:var(--mut);font-size:12px;align-items:center}
+  .ac{color:var(--ac)}
+  .body{display:grid;grid-template-columns:210px 1fr 240px;flex:1;min-height:0}
+  .col{overflow:auto;padding:12px}
+  .l{background:var(--panel);border-right:1px solid var(--bd)}
+  .r{background:var(--panel);border-left:1px solid var(--bd)}
+  .c{display:flex;flex-direction:column;gap:10px}
+  .h{font-size:11px;color:var(--dim);margin:12px 0 6px;text-transform:none}
+  .h:first-child{margin-top:0}
+  .thumb{width:100%;height:140px;border-radius:8px;border:1px solid var(--bd);background:#05070a;object-fit:contain}
+  .fld{margin:7px 0}
+  .fld label{display:block;font-size:11px;color:var(--mut);margin-bottom:3px}
+  input,textarea,select{width:100%;background:#0b0f14;border:1px solid var(--bd);color:var(--tx);border-radius:7px;padding:8px 10px;font-size:13px;outline:none;font-family:inherit}
+  input:focus,textarea:focus{border-color:var(--ac)}
+  textarea{resize:vertical;line-height:1.5}
+  .grp{margin-bottom:6px}
+  .grp>div.gt{display:flex;align-items:center;gap:6px;font-size:12px;color:#e6edf3;padding:6px 4px;cursor:pointer}
+  .phrase{font-size:12px;color:var(--mut);padding:6px 10px;margin:3px 0;border:1px solid var(--bd);border-radius:6px;cursor:pointer;line-height:1.4}
+  .phrase:hover{border-color:var(--ac);color:var(--tx)}
+  .mkb{font-size:12px;padding:7px 10px;margin:3px 0;border:1px solid var(--bd);border-radius:6px;cursor:pointer;display:flex;gap:8px}
+  .mkb:hover{border-color:var(--ac)}
+  .mkb b{color:var(--ac);min-width:46px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:12px;background:#13202066;border:1px solid var(--ac);color:var(--ac);border-radius:14px;padding:4px 10px;display:flex;gap:6px;align-items:center}
+  .chip i{cursor:pointer}
+  .acts{display:flex;gap:8px;margin-top:4px}
+  .btn{display:flex;align-items:center;gap:6px;border-radius:7px;padding:9px 14px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--bd);background:none;color:var(--tx)}
+  .btn.pri{background:var(--ac);color:#06201c;border-color:var(--ac)}
+  .status{display:flex;justify-content:space-between;background:var(--chrome);border-top:1px solid var(--bd);padding:5px 14px;font-size:11px;color:var(--dim)}
+  .toast{position:absolute;bottom:46px;left:50%;transform:translateX(-50%);background:#0e131a;border:1px solid var(--ac);color:var(--ac);padding:8px 16px;border-radius:8px;font-size:12px;display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="titlebar">
+    <div class="brand"><span class="dot"></span>DaliView <span style="color:var(--mut);font-weight:400">· Протокол исследования</span></div>
+    <div class="r"><a href="daliview-worklist.html" class="ac"><i class="ti ti-list"></i> Рабочий список</a><a href="daliview.html" class="ac"><i class="ti ti-photo"></i> Вьювер</a><span><i class="ti ti-user"></i> Иванова О.П.</span></div>
+  </div>
+
+  <div class="body">
+    <div class="col l">
+      <div class="h">Снимок</div>
+      <img class="thumb" src="img/chest_base.png" alt="снимок">
+      <div class="h">Паспортная часть</div>
+      <div class="fld"><label>Пациент</label><input value="Иванов Пётр Сергеевич"></div>
+      <div class="fld"><label>Дата рождения</label><input value="12.03.1958"></div>
+      <div class="fld"><label>Пол</label><select><option>М</option><option>Ж</option></select></div>
+      <div class="fld"><label>№ амб. карты</label><input value="00482"></div>
+      <div class="fld"><label>Исследование</label><input value="ОГК, прямая проекция"></div>
+      <div class="fld"><label>Дата исследования</label><input value="19.06.2026"></div>
+    </div>
+
+    <div class="col c">
+      <div class="h">Описание</div>
+      <textarea id="desc" rows="9" placeholder="Текст описания — вставляйте фразы из шаблонов справа">На обзорной рентгенограмме органов грудной клетки в прямой проекции: </textarea>
+      <div class="h">Заключение</div>
+      <textarea id="concl" rows="3" placeholder="Заключение"></textarea>
+      <div class="h">Диагнозы (МКБ-10)</div>
+      <div class="chips" id="chips"><span style="color:var(--dim);font-size:12px">— добавьте код из справочника справа —</span></div>
+      <div class="acts">
+        <button class="btn pri" onclick="toast('Протокол сохранён в PostgreSQL')"><i class="ti ti-device-floppy"></i> Сохранить</button>
+        <button class="btn" onclick="toast('Печать: протокол + снимок (12-бит на DICOM-принтер)')"><i class="ti ti-printer"></i> Печать</button>
+        <button class="btn" onclick="toast('Отправлено врачу вместе со снимком')"><i class="ti ti-send"></i> Отправить врачу</button>
+      </div>
+    </div>
+
+    <div class="col r">
+      <div class="h">Шаблоны текста</div>
+      <div id="tpl"></div>
+      <div class="h">Справочник МКБ-10</div>
+      <input id="mkbq" placeholder="Поиск кода / диагноза" oninput="renderMkb()">
+      <div id="mkb"></div>
+    </div>
+  </div>
+
+  <div class="status"><span>PostgreSQL · подключено</span><span>Шаблоны: ОГК (12 фраз)</span><span>МКБ-10 · загружен</span><span id="clock"></span></div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+const templates={
+ 'Лёгочные поля':['Лёгочные поля без очаговых и инфильтративных теней.','Лёгочный рисунок усилен в прикорневых отделах.','Очаговых и инфильтративных теней не выявлено.'],
+ 'Корни и средостение':['Корни структурны, не расширены.','Срединная тень не смещена, без особенностей.'],
+ 'Синусы и диафрагма':['Синусы свободны.','Купола диафрагмы чёткие, ровные.'],
+ 'Заключение':['Патологии органов грудной клетки не выявлено.','Хронический бронхит.','Подозрение на очаговое образование S6 справа — рекомендована КТ.']
+};
+const mkbData=[
+ ['Z01.6','Рентгенологическое исследование, БДУ'],['R91','Очаговое затемнение лёгочного поля'],
+ ['J18.9','Пневмония неуточнённая'],['J44','Хроническая обструктивная болезнь лёгких'],
+ ['J20','Острый бронхит'],['J98.1','Лёгочный коллапс'],['A15','Туберкулёз органов дыхания (подтв.)'],['I25','Хроническая ишемическая болезнь сердца']
+];
+let codes=[];
+function renderTpl(){const w=document.getElementById('tpl');w.innerHTML='';
+ Object.entries(templates).forEach(([g,arr])=>{const d=document.createElement('div');d.className='grp';
+   d.innerHTML='<div class="gt"><i class="ti ti-folder"></i>'+g+'</div>';
+   arr.forEach(p=>{const e=document.createElement('div');e.className='phrase';e.textContent=p;
+     e.onclick=()=>{const t=(g==='Заключение')?document.getElementById('concl'):document.getElementById('desc');
+       t.value=(t.value.trim()+' '+p).trim()+' ';t.focus();};d.appendChild(e);});
+   w.appendChild(d);});}
+function renderMkb(){const q=(document.getElementById('mkbq').value||'').toLowerCase(),w=document.getElementById('mkb');w.innerHTML='';
+ mkbData.filter(r=>(r[0]+' '+r[1]).toLowerCase().includes(q)).forEach(r=>{const e=document.createElement('div');e.className='mkb';
+   e.innerHTML='<b>'+r[0]+'</b><span>'+r[1]+'</span>';e.onclick=()=>addCode(r);w.appendChild(e);});}
+function addCode(r){if(codes.find(c=>c[0]===r[0]))return;codes.push(r);renderChips();}
+function renderChips(){const w=document.getElementById('chips');if(!codes.length){w.innerHTML='<span style="color:var(--dim);font-size:12px">— добавьте код из справочника справа —</span>';return;}
+ w.innerHTML='';codes.forEach((c,i)=>{const e=document.createElement('span');e.className='chip';e.innerHTML=c[0]+' '+c[1]+' <i class="ti ti-x"></i>';
+   e.querySelector('i').onclick=()=>{codes.splice(i,1);renderChips();};w.appendChild(e);});}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';clearTimeout(t._);t._=setTimeout(()=>t.style.display='none',2200);}
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleString('ru-RU');setTimeout(tick,1000);}
+renderTpl();renderMkb();tick();
+</script>
+</body>
+</html>
