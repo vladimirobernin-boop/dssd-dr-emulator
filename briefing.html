@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Памятка к ВКС — свой enhancement-блок вместо ContextVision</title>
+<style>
+  :root{--blue:#0a246a;--blue2:#3a6ea5;--ink:#1a1a1a;--mut:#667;--line:#d7dce6;--ok:#0a7a3a;--warn:#a30;}
+  *{box-sizing:border-box}
+  body{margin:0;background:#eef1f6;color:var(--ink);font-family:-apple-system,'Segoe UI',Tahoma,sans-serif;line-height:1.5}
+  .wrap{max-width:980px;margin:0 auto;padding:24px 20px 60px}
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .top a{color:var(--blue2);text-decoration:none;font-size:13px}
+  h1{font-size:25px;color:var(--blue);margin:6px 0 2px;border-bottom:3px solid var(--blue);padding-bottom:10px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:18px}
+  h2{font-size:17px;color:var(--blue);margin:26px 0 8px;border-bottom:1px solid var(--line);padding-bottom:4px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin:12px 0;box-shadow:0 1px 3px rgba(10,36,106,.06)}
+  ol,ul{margin:6px 0 6px 0;padding-left:22px}
+  li{margin:6px 0}
+  b,strong{color:var(--blue)}
+  table{border-collapse:collapse;width:100%;margin:8px 0;font-size:14px}
+  th{background:var(--blue);color:#fff;text-align:left;padding:7px 10px}
+  td{border:1px solid var(--line);padding:7px 10px;vertical-align:top}
+  tr:nth-child(even) td{background:#f5f8fc}
+  .quote{background:#0a246a;color:#fff;border-radius:8px;padding:14px 18px;font-size:16px;margin:14px 0;font-weight:600}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;color:#fff;vertical-align:middle}
+  .p-ok{background:var(--ok)} .p-warn{background:var(--warn)} .p-day{background:var(--blue2)}
+  .mut{color:var(--mut);font-size:13px}
+  .role{display:grid;grid-template-columns:160px 1fr;gap:6px 14px;font-size:14px}
+  .role .r{font-weight:700;color:var(--blue)}
+  .foot{margin-top:30px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:10px}
+  @media print{body{background:#fff}.card{box-shadow:none}.top a{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <a href="index.html">← к демо АРМ (DSSD-DR 2011)</a>
+    <span class="mut">материалы к ВКС · 19.06.2026</span>
+  </div>
+
+  <h1>Своё усиление изображения вместо ContextVision</h1>
+  <div class="sub">Памятка к ВКС · позиция, роли, инструмент, пайплайн, сроки · на основе ответов Василия</div>
+
+  <h2>1. Как подаём (нарратив, 5 шагов)</h2>
+  <div class="card">
+    <ol>
+      <li><b>Где мы сейчас.</b> ContextVision — чужое, покупное, дорогое, юридически зависимое. Каждый снимок мы «арендуем».</li>
+      <li><b>Ложный путь — закрываем сразу.</b> «Расшифровать / скопировать» нельзя: патенты, лицензия, и это <b>убьёт сертификацию</b> на выходе на рынок. Проговорить и отмести — показывает зрелость, а не хакерство.</li>
+      <li><b>Правильный путь — «чистая комната».</b> Метод не секрет: <b>патенты ContextVision публичны</b>, наука открыта, а современные методы часто <b>лучше</b> старого GOP. Это инженерная задача, не научный прорыв.</li>
+      <li><b>Доказательство уже на столе.</b> Открываем демо на <b>реальном снимке Василия</b>: CLAHE (что он пробовал) → наше «Усиление». «Сделано за вечер. Вектор работает».</li>
+      <li><b>Роли</b> (см. ниже) — Василий ключевой: валидация и домен на нём.</li>
+    </ol>
+    <div class="quote">«Мы не вскрываем ContextVision — это незаконно и тупик. Мы строим своё из открытой науки. И вот доказательство, что это реально — уже на вашем снимке.»</div>
+  </div>
+
+  <h2>2. Роли</h2>
+  <div class="card">
+    <div class="role">
+      <div class="r">РН + ВФ</div><div>постановка <b>глобальной задачи</b> и <b>подзадач Василию на начальном этапе</b>; далее — <b>ненавязчивая координация</b> (сверки на узлах, не микроменеджмент).</div>
+      <div class="r">Василий</div><div>домен, детектор iRay, <b>валидация с врачами</b> — без него никак.</div>
+      <div class="r">Claude Code</div><div>сборка пайплайна, прогон на снимках, итерации.</div>
+    </div>
+  </div>
+
+  <h2>3. Почему Claude Code (в этом контексте, не «вообще»)</h2>
+  <div class="card">
+    <ol>
+      <li><b>Замкнутый цикл «написал → запустил → посмотрел результат → поправил».</b> СС сам гоняет Python/OpenCV на снимке, <b>смотрит выходную картинку</b>, видит ошибку, итерирует. Обработку нельзя «прочитать глазами» — её надо гонять на кадрах. Cursor — больше редактор, цикл висит на человеке.</li>
+      <li><b>Читает PDF с картинками</b> — прямой ответ Василию: «курсору надо только текст, PDF переделывать — геморрой». СС читает SDK iRay со схемами напрямую.</li>
+      <li><b>Большой репо без «запихивания в контекст».</b> &gt;100к строк: СС сам ходит по файлам, подкачивает нужное — не держит всё в окне (то, чего Василий боялся).</li>
+      <li><b>Долгие автономные задачи + субагенты</b> (собрать пайплайн, прогнать на 50 снимках, свести сравнение — пока занят другим).</li>
+      <li><b>Память между сессиями</b> (CLAUDE.md / Obsidian) — контекст проекта живёт.</li>
+      <li><b>Свежие модели (Opus 4.8) по умолчанию</b> без доплаты за фичу.</li>
+    </ol>
+    <div class="mut"><b>Честно:</b> Cursor силён в построчных диффах и план-режиме в редакторе (что Василий любит). Позиция не «выкинь Cursor», а «<b>под обработку изображений — прогон кода на данных + большой репо + PDF SDK — СС нативнее</b>».</div>
+  </div>
+
+  <h2>4. Из чего собирается «свой enhancement-блок» (всё открытое, легальное)</h2>
+  <div class="card">
+    <table>
+      <tr><th>Ступень</th><th>Что делает</th><th>Открытые кирпичи</th></tr>
+      <tr><td>1. Препроцессинг</td><td>14–16 бит, коррекция детектора (offset/gain/битые пиксели — есть с iRay), лог-пространство</td><td>NumPy / OpenCV</td></tr>
+      <tr><td>2. <b>Шумоподавление edge-preserving</b> ⭐</td><td>главный差ер ContextVision: убрать шум, <b>не размывая края</b></td><td>Guided filter, NLM, anisotropic diffusion, BM3D; CNN — <b>Noise2Void</b> (учится на самих шумных снимках, эталоны не нужны)</td></tr>
+      <tr><td>3. Многомасштабный контраст</td><td>усилить структуры по масштабам (рёбра, сосуды)</td><td>Laplacian/wavelet-пирамида (à la MUSICA), <b>Local Laplacian Filters</b></td></tr>
+      <tr><td>4. Тоновая компрессия</td><td>чтобы и средостение, и лёгкие читались сразу</td><td>multiscale tone mapping</td></tr>
+      <tr><td>5. Вывод</td><td>привязка к <b>Window Width/Level</b> (DICOM-стандарт, который назвал Вася)</td><td>—</td></tr>
+    </table>
+    <div class="mut">«Секрет» ContextVision — это <b>ступень 2</b> (адаптивный денойз), а не контраст. В демо сейчас есть 3+5; добавляем 2 — приближаемся вплотную. Патенты GOP не трогаем — guided filter / Local Laplacian / Noise2Void опубликованы независимо.</div>
+  </div>
+
+  <h2>5. Сроки (честно, по уровням)</h2>
+  <div class="card">
+    <table>
+      <tr><th>Уровень</th><th>Что получаем</th><th>Срок</th></tr>
+      <tr><td><b>Прототип-демо</b></td><td>классический пайплайн (guided-денойз + Local Laplacian + W/L) на снимках Васи; на части кейсов ≈ или лучше CLAHE</td><td><span class="pill p-day">3–5 дней</span></td></tr>
+      <tr><td>Улучшенный (CNN)</td><td>Noise2Void под детектор iRay на реальных кадрах</td><td><span class="pill p-day">+1–2 недели</span></td></tr>
+      <tr><td>Тюнинг под типы исследований</td><td>консистентность, параметры под iRay, итерации с врачами</td><td><span class="pill p-warn">1–2 месяца</span></td></tr>
+    </table>
+    <div class="mut"><b>Отделить вслух:</b> «прототип для врачей» — дни-недели; дальше — тюнинг под типы исследований и валидация с врачами. Не путать прототип с готовым продуктом — иначе попадём в «40% проектов, которые умирают» (Гартнер).</div>
+    <div class="quote">За неделю — убедительный прототип на наших снимках. Дальше — тюнинг и валидация под реальную клинику.</div>
+  </div>
+
+  <div class="foot">DSSD-DR · материалы к ВКС 19.06.2026. Демо: index.html</div>
+</div>
+</body>
+</html>
