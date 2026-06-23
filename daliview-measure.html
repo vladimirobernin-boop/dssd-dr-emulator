@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>DaliView — Измерения (демо-модуль)</title>
+<style>
+  :root{--bg:#0b0f14;--panel:#0e131a;--chrome:#11161d;--bd:#232a33;--tx:#c9d1d9;--mut:#8b949e;--dim:#6e7681;--ac:#2dd4bf;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font-family:-apple-system,'Segoe UI',sans-serif;font-size:13px}
+  a{color:inherit;text-decoration:none}
+  .app{display:flex;flex-direction:column;height:100vh}
+  .titlebar{display:flex;align-items:center;justify-content:space-between;background:var(--chrome);border-bottom:1px solid var(--bd);padding:8px 14px}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:500;color:#e6edf3}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--ac)}
+  .titlebar .r{display:flex;gap:14px;color:var(--mut);font-size:12px;align-items:center}
+  .ac{color:var(--ac)}
+  .body{display:grid;grid-template-columns:1fr 210px;flex:1;min-height:0}
+  .view{position:relative;background:#05070a;overflow:hidden}
+  #cv{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;cursor:crosshair}
+  .side{background:var(--panel);border-left:1px solid var(--bd);padding:10px;overflow:auto}
+  .h{font-size:11px;color:var(--dim);margin:10px 0 6px}
+  .h:first-child{margin-top:0}
+  .tools{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .tool{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--tx);background:none;border:1px solid var(--bd);border-radius:6px;padding:6px 7px;cursor:pointer;text-align:left}
+  .tool:hover{border-color:var(--ac)}
+  .tool.on{background:var(--ac);color:#06201c;border-color:var(--ac);font-weight:500}
+  .tool i{font-size:15px}
+  .cal{font-size:11px;color:var(--mut);margin-top:4px}
+  .cal b{color:var(--ac)}
+  .mlist{font-size:11.5px;display:flex;flex-direction:column;gap:4px}
+  .mrow{display:flex;justify-content:space-between;gap:6px;border-bottom:1px solid #181d25;padding:4px 0;color:var(--tx)}
+  .mrow span.k{color:var(--mut)}
+  .btnf{width:100%;background:none;border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:7px;font-size:12px;cursor:pointer;margin-top:6px}
+  .btnf:hover{border-color:var(--ac)}
+  .hint{position:absolute;left:12px;top:10px;font-size:11px;color:#aeb4ba;background:#0008;padding:5px 9px;border-radius:6px;text-shadow:0 0 3px #000;max-width:60%}
+  .status{display:flex;justify-content:space-between;background:var(--chrome);border-top:1px solid var(--bd);padding:5px 14px;font-size:11px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="titlebar">
+    <div class="brand"><span class="dot"></span>DaliView <span style="color:var(--mut);font-weight:400">· Измерения (демо-модуль)</span></div>
+    <div class="r"><a href="daliview.html" class="ac"><i class="ti ti-photo"></i> Вьювер</a><a href="daliview-worklist.html" class="ac"><i class="ti ti-list"></i> Рабочий список</a></div>
+  </div>
+
+  <div class="body">
+    <div class="view" id="view">
+      <canvas id="cv"></canvas>
+      <div class="hint" id="hint">Выберите инструмент. Начните с «Калибровка», чтобы мм были точными.</div>
+    </div>
+
+    <div class="side">
+      <div class="h">Инструменты (по руководству Махаона)</div>
+      <div class="tools">
+        <button class="tool" data-t="calib" onclick="setTool('calib',this)"><i class="ti ti-ruler-measure"></i>Калибровка</button>
+        <button class="tool on" data-t="ruler" onclick="setTool('ruler',this)"><i class="ti ti-ruler-2"></i>Длина</button>
+        <button class="tool" data-t="angle" onclick="setTool('angle',this)"><i class="ti ti-angle"></i>Угол</button>
+        <button class="tool" data-t="dangle" onclick="setTool('dangle',this)"><i class="ti ti-angle"></i>Двойной</button>
+        <button class="tool" data-t="rect" onclick="setTool('rect',this)"><i class="ti ti-rectangle"></i>Прямоуг.</button>
+        <button class="tool" data-t="ellipse" onclick="setTool('ellipse',this)"><i class="ti ti-circle"></i>Эллипс</button>
+        <button class="tool" data-t="poly" onclick="setTool('poly',this)"><i class="ti ti-polygon"></i>Область</button>
+        <button class="tool" data-t="point" onclick="setTool('point',this)"><i class="ti ti-point"></i>Точка</button>
+        <button class="tool" data-t="arrow" onclick="setTool('arrow',this)"><i class="ti ti-arrow-up-right"></i>Стрелка</button>
+        <button class="tool" data-t="text" onclick="setTool('text',this)"><i class="ti ti-text-size"></i>Текст</button>
+      </div>
+      <div class="cal">Масштаб: <b id="mmpx">0.286</b> мм/пиксель</div>
+      <button class="btnf" onclick="clearAll()">Очистить всё</button>
+      <div class="h">Результаты</div>
+      <div class="mlist" id="mlist"><span style="color:var(--dim)">— нет измерений —</span></div>
+    </div>
+  </div>
+  <div class="status"><span>Снимок: ОГК, прямая · 3072×3008 · 14 бит</span><span>Площадь по калибровке · значения 0–255</span><span id="clock"></span></div>
+</div>
+
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+let iw=0,ih=0,baseImg=null,gray=null,loaded=false,FS=1,MMPX=0.286;
+let tool='ruler', items=[], draft=null;
+
+const load=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=s;});
+async function init(){
+  baseImg=await load('img/chest_base.png'); iw=baseImg.naturalWidth; ih=baseImg.naturalHeight; FS=ih/640;
+  cv.width=iw; cv.height=ih;
+  const t=document.createElement('canvas'); t.width=iw; t.height=ih; const tc=t.getContext('2d');
+  tc.drawImage(baseImg,0,0); const d=tc.getImageData(0,0,iw,ih).data; gray=new Uint8ClampedArray(iw*ih);
+  for(let i=0,j=0;i<d.length;i+=4,j++)gray[j]=d[i];
+  loaded=true; draw();
+}
+function setTool(t,el){tool=t;draft=null;document.querySelectorAll('.tool').forEach(b=>b.classList.remove('on'));if(el)el.classList.add('on');
+  const hints={calib:'Проведите линию по известному размеру и введите мм.',ruler:'Линия — длина в мм.',angle:'3 точки: вершина — второй клик.',dangle:'4 точки: две линии, угол между ними.',rect:'Протяните прямоугольник — площадь + анализ.',ellipse:'Протяните эллипс — площадь + анализ.',poly:'Клики по контуру, двойной клик — замкнуть.',point:'Клик — значение пикселя.',arrow:'Протяните стрелку.',text:'Клик — введите текст.'};
+  document.getElementById('hint').textContent=hints[t]||''; }
+function evPos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height};}
+
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const mm=px=>px*MMPX;
+function angle3(a,b,c){const a1=Math.atan2(a.y-b.y,a.x-b.x),a2=Math.atan2(c.y-b.y,c.x-b.x);let d=Math.abs((a1-a2)*180/Math.PI);return d>180?360-d:d;}
+function lineAngle(p,q){return Math.atan2(q.y-p.y,q.x-p.x);}
+function polyArea(pts){let s=0;for(let i=0;i<pts.length;i++){const j=(i+1)%pts.length;s+=pts[i].x*pts[j].y-pts[j].x*pts[i].y;}return Math.abs(s/2);}
+function roi(test,x0,y0,x1,y1){let n=0,sum=0,mn=255,mx=0;x0=Math.max(0,x0|0);y0=Math.max(0,y0|0);x1=Math.min(iw-1,x1|0);y1=Math.min(ih-1,y1|0);
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){if(test(x,y)){const v=gray[y*iw+x];sum+=v;if(v<mn)mn=v;if(v>mx)mx=v;n++;}}
+  return n?{mean:Math.round(sum/n),mn,mx,n}:{mean:0,mn:0,mx:0,n:0};}
+
+function draw(){
+  if(!loaded)return; ctx.clearRect(0,0,iw,ih); ctx.fillStyle='#05070a'; ctx.fillRect(0,0,iw,ih); ctx.drawImage(baseImg,0,0,iw,ih);
+  const all=items.concat(draft?[draft]:[]);
+  ctx.lineWidth=1.6*FS; ctx.font=(13*FS)+'px sans-serif';
+  for(const o of all)drawItem(o);
+  renderList();
+}
+function lbl(txt,x,y,color){ctx.lineWidth=Math.max(2,4*FS);ctx.strokeStyle='rgba(0,0,0,.85)';ctx.strokeText(txt,x,y);ctx.fillStyle=color;ctx.fillText(txt,x,y);ctx.lineWidth=1.6*FS;}
+function drawItem(o){
+  const c=o.t==='calib'?'#ffd33d':'#19e0ff'; ctx.strokeStyle=c; ctx.fillStyle=c; const p=o.pts;
+  if(o.t==='ruler'||o.t==='calib'){if(p.length<2)return;line(p[0],p[1]);lbl((o.t==='calib'?'калибр: ':'')+mm(dist(p[0],p[1])).toFixed(1)+' мм',(p[0].x+p[1].x)/2+6*FS,(p[0].y+p[1].y)/2-6*FS,c);}
+  else if(o.t==='arrow'){if(p.length<2)return;arrow(p[0],p[1]);}
+  else if(o.t==='angle'){if(p.length<2)return;line(p[0],p[1]);if(p[2]){line(p[1],p[2]);lbl(angle3(p[0],p[1],p[2]).toFixed(1)+'°',p[1].x+8*FS,p[1].y,c);}}
+  else if(o.t==='dangle'){if(p.length<2)return;line(p[0],p[1]);if(p.length>=4){line(p[2],p[3]);let d=Math.abs((lineAngle(p[0],p[1])-lineAngle(p[2],p[3]))*180/Math.PI);if(d>180)d=360-d;if(d>90)d=180-d;lbl(d.toFixed(1)+'°',(p[1].x+p[2].x)/2,(p[1].y+p[2].y)/2,c);}}
+  else if(o.t==='rect'){if(p.length<2)return;const x=Math.min(p[0].x,p[1].x),y=Math.min(p[0].y,p[1].y),w=Math.abs(p[1].x-p[0].x),h=Math.abs(p[1].y-p[0].y);ctx.strokeRect(x,y,w,h);const r=roi(()=>true,x,y,x+w,y+h);lbl((mm(w)*mm(h)/100).toFixed(1)+' см² · ср '+r.mean,x+4*FS,y-5*FS,c);}
+  else if(o.t==='ellipse'){if(p.length<2)return;const cx=(p[0].x+p[1].x)/2,cy=(p[0].y+p[1].y)/2,rx=Math.abs(p[1].x-p[0].x)/2,ry=Math.abs(p[1].y-p[0].y)/2;ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,7);ctx.stroke();const r=roi((x,y)=>((x-cx)/rx)**2+((y-cy)/ry)**2<=1,cx-rx,cy-ry,cx+rx,cy+ry);lbl((Math.PI*mm(rx)*mm(ry)/100).toFixed(1)+' см² · ср '+r.mean,cx+rx+4*FS,cy,c);}
+  else if(o.t==='poly'){if(p.length<2)return;ctx.beginPath();ctx.moveTo(p[0].x,p[0].y);for(let i=1;i<p.length;i++)ctx.lineTo(p[i].x,p[i].y);if(o.closed)ctx.closePath();ctx.stroke();if(o.closed){lbl((polyArea(p)*MMPX*MMPX/100).toFixed(1)+' см²',p[0].x+4*FS,p[0].y-5*FS,c);}}
+  else if(o.t==='point'){ctx.beginPath();ctx.arc(p[0].x,p[0].y,4*FS,0,7);ctx.fill();const v=gray[(p[0].y|0)*iw+(p[0].x|0)]||0;lbl('значение '+v,p[0].x+7*FS,p[0].y,c);}
+  else if(o.t==='text'){ctx.font='bold '+(15*FS)+'px sans-serif';lbl(o.txt,p[0].x,p[0].y,'#ffe14d');ctx.font=(13*FS)+'px sans-serif';}
+}
+const line=(a,b)=>{ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();};
+function arrow(a,b){line(a,b);const ang=Math.atan2(b.y-a.y,b.x-a.x),h=14*FS;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-h*Math.cos(ang-0.4),b.y-h*Math.sin(ang-0.4));ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-h*Math.cos(ang+0.4),b.y-h*Math.sin(ang+0.4));ctx.stroke();}
+
+function val(o){const p=o.pts;
+  if(o.t==='ruler')return mm(dist(p[0],p[1])).toFixed(1)+' мм';
+  if(o.t==='calib')return 'масштаб задан';
+  if(o.t==='angle'&&p[2])return angle3(p[0],p[1],p[2]).toFixed(1)+'°';
+  if(o.t==='dangle'&&p.length>=4){let d=Math.abs((lineAngle(p[0],p[1])-lineAngle(p[2],p[3]))*180/Math.PI);if(d>180)d=360-d;if(d>90)d=180-d;return d.toFixed(1)+'°';}
+  if(o.t==='rect'){const w=Math.abs(p[1].x-p[0].x),h=Math.abs(p[1].y-p[0].y);const r=roi(()=>true,Math.min(p[0].x,p[1].x),Math.min(p[0].y,p[1].y),Math.max(p[0].x,p[1].x),Math.max(p[0].y,p[1].y));return (mm(w)*mm(h)/100).toFixed(1)+' см² (ср '+r.mean+', '+r.mn+'–'+r.mx+')';}
+  if(o.t==='ellipse'){const rx=Math.abs(p[1].x-p[0].x)/2,ry=Math.abs(p[1].y-p[0].y)/2;return (Math.PI*mm(rx)*mm(ry)/100).toFixed(1)+' см²';}
+  if(o.t==='poly'&&o.closed)return (polyArea(p)*MMPX*MMPX/100).toFixed(1)+' см²';
+  if(o.t==='point')return 'значение '+(gray[(p[0].y|0)*iw+(p[0].x|0)]||0);
+  if(o.t==='arrow')return 'указатель';
+  if(o.t==='text')return '«'+o.txt+'»';
+  return '…';
+}
+const NAMES={calib:'Калибровка',ruler:'Длина',angle:'Угол',dangle:'Двойной угол',rect:'Прямоугольник',ellipse:'Эллипс',poly:'Область',point:'Точка',arrow:'Стрелка',text:'Текст'};
+function renderList(){const w=document.getElementById('mlist');const done=items.filter(o=>o.t!=='calib');if(!done.length){w.innerHTML='<span style="color:var(--dim)">— нет измерений —</span>';return;}
+  w.innerHTML='';done.forEach(o=>{const d=document.createElement('div');d.className='mrow';d.innerHTML='<span class="k">'+NAMES[o.t]+'</span><span>'+val(o)+'</span>';w.appendChild(d);});}
+function clearAll(){items=[];draft=null;draw();}
+
+cv.addEventListener('mousedown',e=>{const p=evPos(e);
+  if(tool==='text'){const t=prompt('Текст:','');if(t){items.push({t:'text',pts:[p],txt:t});draw();}return;}
+  if(tool==='point'){items.push({t:'point',pts:[p]});draw();return;}
+  if(tool==='poly'){if(!draft||draft.t!=='poly'){draft={t:'poly',pts:[p],closed:false};}else{draft.pts.push(p);}draw();return;}
+  if(tool==='angle'){if(!draft){draft={t:'angle',pts:[p,p]};}else if(draft.pts.length<3){draft.pts[1]=p;draft.pts.push(p);} if(draft.pts.length>=3){items.push(draft);draft=null;}draw();return;}
+  if(tool==='dangle'){if(!draft){draft={t:'dangle',pts:[p,p]};}else{draft.pts.push(p);} if(draft.pts.length>=4){items.push(draft);draft=null;}draw();return;}
+  draft={t:tool,pts:[p,p]};});
+cv.addEventListener('mousemove',e=>{if(!draft)return;const p=evPos(e);
+  if(draft.t==='poly'){draw();return;}
+  if(draft.t==='angle'){if(draft.pts.length===2)draft.pts[1]=p;else draft.pts[2]=p;draw();return;}
+  if(draft.t==='dangle'){draft.pts[draft.pts.length-1]=p;draw();return;}
+  draft.pts[1]=p;
+  if(draft.t==='ruler')document.getElementById('hint').textContent='Длина: '+mm(dist(draft.pts[0],draft.pts[1])).toFixed(1)+' мм';
+  draw();});
+cv.addEventListener('mouseup',e=>{if(!draft)return;if(['ruler','arrow','rect','ellipse'].includes(draft.t)){items.push(draft);draft=null;draw();}
+  else if(draft.t==='calib'){const len=dist(draft.pts[0],draft.pts[1]);const known=parseFloat(prompt('Известная длина линии, мм:','100'));if(known>0&&len>0){MMPX=known/len;document.getElementById('mmpx').textContent=MMPX.toFixed(4);}draft=null;draw();}});
+cv.addEventListener('dblclick',()=>{if(draft&&draft.t==='poly'&&draft.pts.length>=3){draft.closed=true;items.push(draft);draft=null;draw();}});
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleString('ru-RU');setTimeout(tick,1000);}
+init();tick();
+</script>
+</body>
+</html>
